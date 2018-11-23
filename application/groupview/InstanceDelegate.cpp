@@ -25,7 +25,8 @@
 #include "BaseInstance.h"
 #include "InstanceList.h"
 #include <xdgicon.h>
-#include <QPlainTextEdit>
+#include <QLabel>
+#include <QTextDocument>
 
 // Origin: Qt
 static void viewItemTextLayout(QTextLayout &textLayout, int lineWidth, qreal &height,
@@ -345,13 +346,41 @@ void ListViewDelegate::updateEditorGeometry(QWidget* editor, const QStyleOptionV
 {
     const int iconSize = 48;
     QRect textRect = option.rect;
-    textRect.adjust(0, iconSize + 5, 0, 0);
+    QStyle *style = option.widget ? option.widget->style() : QApplication::style();
+    const int textMargin = style->pixelMetric(QStyle::PM_FocusFrameHMargin, 0, option.widget) + 1;
+    textRect.adjust(textMargin, iconSize + textMargin + 5, -textMargin, 0);
     editor->setGeometry(textRect);
+}
+
+void ListViewDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
+{
+    auto text = index.data(Qt::EditRole).toString();
+    QLabel * realeditor = (QLabel *)editor;
+    realeditor->setText(" ");
+    QTextDocument *td = realeditor->findChild<QTextDocument *>();
+    if(td)
+    {
+        td->setPlainText(text);
+    }
+}
+
+void ListViewDelegate::setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const
+{
+    QTextDocument *td = editor->findChild<QTextDocument *>();
+    if(td)
+    {
+        QString text = td->toPlainText();
+        text.replace(QChar('\n'), QChar(' '));
+        model->setData(index, text.trimmed());
+    }
 }
 
 QWidget * ListViewDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
-    auto *le = new QLineEdit(parent);
-    le->setFrame(false);
+    auto *le = new QLabel(parent);
+    le->setTextInteractionFlags(Qt::TextEditorInteraction);
+    le->setTextFormat(Qt::PlainText);
+    le->setWordWrap(true);
+    le->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
     return le;
 }
